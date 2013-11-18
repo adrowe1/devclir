@@ -1,0 +1,20 @@
+Package: devclir
+Type: Package
+Title: Background functions for CLIR analysis
+Version: 0.1
+Date: 2013-11-13
+Author: Alexander D. Rowe
+Maintainer: Alexander D. Rowe <adrowe1@gmail.com>
+Description: A set of functions and example data that can be called from .NET
+    to perform necessary tests, calculations and statistics for clir
+License: MIT (I would be glad to receive an email if you actually use the
+    package and aren't related to clir)
+Depends:
+    R (>= 2.11.0)
+LazyLoad: yes
+Imports:
+    ggplot2,
+    plyr,
+    reshape2
+Collate:
+    'fun1.r'
