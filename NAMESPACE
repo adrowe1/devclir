@@ -1,1 +1,3 @@
-export(fun1)
+export(BoxCox.uniformity)
+export(cov.transform.age)
+import(car)
