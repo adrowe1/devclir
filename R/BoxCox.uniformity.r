@@ -14,7 +14,7 @@
 #' @examples
 #' plot(seq(-1,2,0.1), mapply(lambda=seq(-1,2,0.1), BoxCox.uniformity, MoreArgs = list(covariate = rexp(1000,1)) ))
 #' @export
-#' @import car bcPower
+#' @import car 
 #' 
 
 BoxCox.uniformity <- function(lambda, covariate) {

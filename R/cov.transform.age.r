@@ -14,8 +14,8 @@
 #' @examples
 #' cov.transform.age(data.frame(analyte=rnorm(20,1), Age=rexp(20,1)*10 ))
 #' @export
-#' @import car bcPower
-#' 
+#' @import car ggplot2
+
 
 cov.transform.age <- function(dataset, age.colname="Age", age.units=c("d","w","m","y") ){
     # First identify age variable
