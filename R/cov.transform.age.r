@@ -7,8 +7,8 @@
 #' @param dataset data frame containing marker values and at least one column containing age data.
 #' @param age.colname character string containing the exact name of the column containing age data.
 #' @param age.units character array containing the shorthand values used to define days, weeks, months and years, where necessary in data files
-#' @return a list containing the original data with appended Box-Cox transformed ages, 
-#' the optimal lambda and a ggplot of the transformed, log-transformed and untransformed distributions for comparison
+#' @return a list containing the original data with appended Box-Cox transformed ages and cluster IDs, 
+#' the optimal lambda, a plot of lambda vs chi-statistic and a ggplot of the transformed, log-transformed and untransformed distributions for comparison
 #' @author Alexander D. Rowe
 #' @seealso \code{\link{BoxCox.uniformity}}
 #' @examples
@@ -56,10 +56,19 @@ cov.transform.age <- function(dataset, age.colname="Age", age.units=c("d","w","m
     # histogram the data into bins (total bins = sqrt total data) then minimise a X-square to test for uniformity
     lambdas <- seq(-2, 2, by=0.02)
     transform.results <- data.frame(lambdas, 
-                                    X.squared=mapply(lambda=lambdas, BoxCox.uniformity, MoreArgs = list(covariate = ages) )
+                                    X.squared=mapply(lambda=lambdas, BoxCox.uniformity, MoreArgs = list(covariate = ages) )    
                                     )
-    # return the lambda which gives the most uniformly distributed covariate
-    optimal.lambda <- transform.results[transform.results$X.squared==min(transform.results$X.squared),]$lambdas
+    # add smoothing data
+    transform.results$smoothed.X.squared <- predict(loess(X.squared ~ lambdas, transform.results, span=0.15), transform.results$lambdas)
+    # ggplot of chi-square vs lambda
+    x.sq.vs.lambda.plot <- ggplot(transform.results, aes(x=lambdas, y=X.squared)) + 
+        geom_point() + 
+        geom_smooth(span=0.15, colour="red") + 
+        scale_y_log10() + 
+        xlab("Lambda for Box-Cox transform") + 
+        ylab("Chi-square statistic to be minimized")
+    # return the lambda which gives the most uniformly distributed covariate - minimum of the smoothed X square statistics
+    optimal.lambda <- transform.results[transform.results$smoothed.X.squared==min(transform.results$smoothed.X.squared),]$lambdas
     # build a data frame containing count data for untransformed, log transformed and optimally transformed data, for plotting and comparison
     bins <- floor(sqrt(length(ages)))
     opt <- hist(bcPower(ages, optimal.lambda), plot=FALSE, breaks=bins)
@@ -70,12 +79,31 @@ cov.transform.age <- function(dataset, age.colname="Age", age.units=c("d","w","m
                              counts=c(opt$counts, unt$counts, log$counts), 
                              type=c(rep("Optimal", length(opt$mids)) , rep("Untransformed", length(unt$mids)), rep("Log transformed", length(log$mids)) )
                              )
-    plot.uniformity <- ggplot(uniformity, aes(x=mids, y=counts, fill=type)) + geom_bar(stat="identity") + facet_grid(.~type, scales="free_x")
     
+    uniformity2 <- data.frame(mids=c(inverse.BoxCox(opt$mids, optimal.lambda), unt$mids, 10^(log$mids) ), 
+                             counts=c(opt$counts, unt$counts, log$counts), 
+                             type=c(rep(paste("Box-Cox lambda =", optimal.lambda, sep=" "), length(opt$mids)) , rep("Untransformed", length(unt$mids)), rep("Log transformed", length(log$mids)) )
+    )
+    
+    
+    plot.uniformity <- ggplot(uniformity2[uniformity2$counts>0,], aes(x=mids, y=counts, colour=type, fill=type)) + 
+        geom_bar(stat="identity", position="identity", width=(1/length(opt$mids)), alpha=0.3) + 
+        facet_grid(type~.) + 
+        scale_x_log10(breaks=signif(2^(ceil(log2(min( uniformity2$mids))):floor(log2(max( uniformity2$mids)))), digits=2) ) + 
+        scale_y_log10() + 
+        guides(fill = guide_legend(override.aes = list(alpha = 1))) + 
+        theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+        xlab("Age of group members (years)") +
+        ylab("Samples in evenly spaced transformed-age clusters")
+    # push a column of numeric ages onto dataset
+    dataset$ages <- ages
     # push a transformed age column onto the original dataset
     dataset$transformed.age.years  <- bcPower( ages, optimal.lambda )
+    # add a column for age cluster as defined by the Box-Cox transformed ages
+    dataset$age.cluster <- as.factor(cut(bcPower(ages, optimal.lambda), breaks=opt$breaks, labels=FALSE))
     #assemble output
-    to.user <- list(dataset, optimal.lambda, plot.uniformity)
+    to.user <- list(dataset, optimal.lambda, x.sq.vs.lambda.plot, plot.uniformity)
+    # return output
     to.user
 }
 
